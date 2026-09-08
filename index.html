@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contador de Clicks por Áudio</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --accent: #5eead4;
+    --accent-dim: #14b8a6;
+    --danger: #f87171;
+    --warn: #fbbf24;
+    --text: #e5e7eb;
+    --text-dim: #9ca3af;
+    --border: #262a33;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px 60px;
+    transition: background 0.15s ease;
+  }
+  body.flash {
+    background: #0a3d33;
+  }
+  .app { width: 100%; max-width: 440px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; text-align: center; }
+  .sub { text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .counter-display { text-align: center; margin-bottom: 20px; }
+  .counter-number {
+    font-size: 84px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    transition: transform 0.1s ease;
+  }
+  .counter-number.pulse { transform: scale(1.12); }
+  .counter-label { color: var(--text-dim); font-size: 13px; margin-top: 6px; }
+
+  .mic-section { text-align: center; margin-bottom: 18px; }
+  .mic-btn {
+    width: 100%;
+    padding: 20px 0;
+    border-radius: 14px;
+    border: none;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: transform 0.08s ease;
+  }
+  .mic-btn:active { transform: scale(0.97); }
+  .mic-btn.off { background: var(--accent-dim); color: #06231f; }
+  .mic-btn.on { background: #3a1414; color: var(--danger); border: 1px solid var(--danger); }
+
+  .listening-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--danger);
+    display: inline-block;
+    animation: pulseDot 1s infinite;
+  }
+  @keyframes pulseDot {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.25; }
+  }
+
+  .meter-wrap {
+    margin-top: 14px;
+  }
+  .meter-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-dim); margin-bottom: 4px;
+  }
+  .meter-bar {
+    position: relative;
+    height: 10px;
+    background: #10131a;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent-dim);
+    transition: width 0.05s linear;
+  }
+  .meter-threshold {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: var(--warn);
+  }
+
+  .sens-row {
+    margin-top: 16px;
+  }
+  .sens-row label {
+    font-size: 12px; color: var(--text-dim);
+    display: flex; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent-dim);
+  }
+
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px;
+    font-size: 14px;
+  }
+  .switch {
+    position: relative; width: 44px; height: 24px;
+    background: #2a2e38; border-radius: 12px; cursor: pointer;
+    flex-shrink: 0;
+  }
+  .switch.active { background: var(--accent-dim); }
+  .switch .knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #e5e7eb; transition: left 0.15s ease;
+  }
+  .switch.active .knob { left: 22px; background: #06231f; }
+
+  .btn-row { display: flex; gap: 12px; margin-top: 18px; margin-bottom: 12px; }
+  button.plain { border: none; border-radius: 12px; font-weight: 600; cursor: pointer; }
+  .btn-minus { width: 64px; background: #2a2e38; color: var(--text); font-size: 22px; padding: 14px 0; }
+  .btn-click { flex: 1; background: #2a2e38; color: var(--text); font-size: 16px; padding: 14px 0; }
+  .btn-secondary-row { display: flex; gap: 12px; }
+  .btn-secondary {
+    flex: 1; padding: 12px 0; background: transparent;
+    border: 1px solid var(--border); color: var(--text-dim); font-size: 14px; border-radius: 12px; cursor: pointer;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: #3a3f4b; }
+
+  label.field-label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 6px; }
+  input[type="text"] {
+    background: #10131a; border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 10px 12px; font-size: 14px; width: 100%;
+  }
+
+  .history-title {
+    font-size: 14px; font-weight: 600; margin: 24px 0 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .history-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px; font-size: 14px;
+  }
+  .history-item .clicks { font-weight: 700; color: var(--accent); }
+  .history-item .date { color: var(--text-dim); font-size: 12px; }
+  .history-item .del { background: none; border: none; color: var(--text-dim); font-size: 16px; padding: 2px 6px; cursor: pointer; }
+  .history-item .del:hover { color: var(--danger); }
+  .empty { text-align: center; color: var(--text-dim); font-size: 13px; padding: 20px 0; }
+
+  .status {
+    text-align: center; font-size: 13px; color: var(--text-dim);
+    margin-top: 14px; min-height: 18px;
+  }
+  .status.error { color: var(--danger); }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>🎤 Contador de Clicks por Áudio</h1>
+  <div class="sub">Detecta o som do click automaticamente — com aviso visual e vibração</div>
+
+  <div class="card">
+    <div class="counter-display">
+      <div class="counter-number" id="count">0</div>
+      <div class="counter-label" id="counterLabel">clicks nesta sessão</div>
+    </div>
+
+    <div class="mic-section">
+      <button class="mic-btn off" id="micBtn">🎤 Ativar microfone</button>
+    </div>
+
+    <div class="meter-wrap">
+      <div class="meter-label"><span>Nível de áudio</span><span id="meterVal">0</span></div>
+      <div class="meter-bar">
+        <div class="meter-fill" id="meterFill"></div>
+        <div class="meter-threshold" id="meterThreshold"></div>
+      </div>
+    </div>
+
+    <div class="sens-row">
+      <label><span>Sensibilidade</span><span id="sensVal">5</span></label>
+      <input type="range" id="sensSlider" min="1" max="10" value="5">
+    </div>
+
+    <div class="toggle-row">
+      <span>🔊 Falar o número em voz alta</span>
+      <div class="switch" id="speechToggle"><div class="knob"></div></div>
+    </div>
+    <div class="toggle-row">
+      <span>📳 Vibrar a cada click (celular)</span>
+      <div class="switch active" id="vibrateToggle"><div class="knob"></div></div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="btn-row">
+      <button class="plain btn-minus" id="btnMinus">−</button>
+      <button class="plain btn-click" id="btnPlus">+ click manual</button>
+    </div>
+    <div class="btn-secondary-row">
+      <button class="btn-secondary" id="btnReset">Zerar</button>
+      <button class="btn-secondary" id="btnSave">Salvar dose</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="field-label" for="doseLabel">Nome/observação da dose (opcional)</label>
+    <input type="text" id="doseLabel" placeholder="Ex: Caneta nova, coxa direita...">
+  </div>
+
+  <div class="history-title">Histórico</div>
+  <div id="history"></div>
+</div>
+
+<script>
+let count = 0;
+let history = [];
+let sensitivity = 5;
+let speechEnabled = false;
+let vibrateEnabled = true;
+
+let audioCtx, analyser, dataArray, source, stream;
+let listening = false;
+let lastDetection = 0;
+const debounceMs = 220;
+
+const el = {
+  count: document.getElementById('count'),
+  micBtn: document.getElementById('micBtn'),
+  meterFill: document.getElementById('meterFill'),
+  meterThreshold: document.getElementById('meterThreshold'),
+  meterVal: document.getElementById('meterVal'),
+  sensSlider: document.getElementById('sensSlider'),
+  sensVal: document.getElementById('sensVal'),
+  speechToggle: document.getElementById('speechToggle'),
+  vibrateToggle: document.getElementById('vibrateToggle'),
+  btnMinus: document.getElementById('btnMinus'),
+  btnPlus: document.getElementById('btnPlus'),
+  btnReset: document.getElementById('btnReset'),
+  btnSave: document.getElementById('btnSave'),
+  doseLabel: document.getElementById('doseLabel'),
+  history: document.getElementById('history'),
+  status: document.getElementById('status'),
+};
+
+function thresholdFromSensitivity(s) {
+  // s: 1 (pouco sensível) .. 10 (muito sensível)
+  return 90 - s * 7; // s=1 -> 83, s=10 -> 20
+}
+
+function updateThresholdMarker() {
+  const t = thresholdFromSensitivity(sensitivity);
+  const pct = Math.min(100, (t / 128) * 100);
+  el.meterThreshold.style.left = pct + '%';
+}
+
+function render() {
+  el.count.textContent = count;
+  renderHistory();
+}
+
+function renderHistory() {
+  if (history.length === 0) {
+    el.history.innerHTML = '<div class="empty">Nenhuma dose salva ainda</div>';
+    return;
+  }
+  el.history.innerHTML = history
+    .slice()
+    .reverse()
+    .map((h) => `
+      <div class="history-item" data-id="${h.id}">
+        <div>
+          <span class="clicks">${h.clicks} clicks</span>
+          ${h.label ? ' · ' + escapeHtml(h.label) : ''}
+          <div class="date">${h.date}</div>
+        </div>
+        <button class="del" data-id="${h.id}">✕</button>
+      </div>
+    `)
+    .join('');
+
+  el.history.querySelectorAll('.del').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const id = e.target.getAttribute('data-id');
+      history = history.filter((h) => String(h.id) !== id);
+      persist();
+      renderHistory();
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function setStatus(msg, isError) {
+  el.status.textContent = msg;
+  el.status.classList.toggle('error', !!isError);
+  if (!isError) {
+    setTimeout(() => { if (el.status.textContent === msg) el.status.textContent = ''; }, 2000);
+  }
+}
+
+const STORAGE_KEY = 'click-counter-audio-data';
+
+function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      count, history, sensitivity, speechEnabled, vibrateEnabled
+    }));
+  } catch (err) {
+    console.error('Falha ao salvar:', err);
+  }
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      count = data.count || 0;
+      history = data.history || [];
+      sensitivity = data.sensitivity || 5;
+      speechEnabled = !!data.speechEnabled;
+      vibrateEnabled = data.vibrateEnabled !== false;
+    }
+  } catch (err) {
+    // sem dados salvos ainda
+  }
+  el.sensSlider.value = sensitivity;
+  el.sensVal.textContent = sensitivity;
+  el.speechToggle.classList.toggle('active', speechEnabled);
+  el.vibrateToggle.classList.toggle('active', vibrateEnabled);
+  updateThresholdMarker();
+  render();
+}
+
+function pulseCounter() {
+  el.count.classList.add('pulse');
+  setTimeout(() => el.count.classList.remove('pulse'), 120);
+}
+
+function flashScreen() {
+  document.body.classList.add('flash');
+  setTimeout(() => document.body.classList.remove('flash'), 150);
+}
+
+function speakCount(n) {
+  if (!speechEnabled) return;
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(String(n));
+  utter.lang = 'pt-BR';
+  utter.rate = 1.05;
+  speechSynthesis.speak(utter);
+}
+
+function registerClick() {
+  count++;
+  pulseCounter();
+  flashScreen();
+  if (vibrateEnabled && navigator.vibrate) navigator.vibrate(120);
+  speakCount(count);
+  el.count.textContent = count;
+  persist();
+}
+
+function updateMeter(dev) {
+  const pct = Math.min(100, (dev / 128) * 100);
+  el.meterFill.style.width = pct + '%';
+  el.meterVal.textContent = Math.round(dev);
+}
+
+function loop() {
+  if (!listening) return;
+  analyser.getByteTimeDomainData(dataArray);
+  let maxDev = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    const dev = Math.abs(dataArray[i] - 128);
+    if (dev > maxDev) maxDev = dev;
+  }
+  updateMeter(maxDev);
+  const threshold = thresholdFromSensitivity(sensitivity);
+  const now = performance.now();
+  if (maxDev > threshold && now - lastDetection > debounceMs) {
+    lastDetection = now;
+    registerClick();
+  }
+  requestAnimationFrame(loop);
+}
+
+async function startListening() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    source = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    dataArray = new Uint8Array(analyser.fftSize);
+    source.connect(analyser);
+    listening = true;
+    el.micBtn.textContent = '⏹ Parar escuta';
+    el.micBtn.classList.remove('off');
+    el.micBtn.classList.add('on');
+    setStatus('Escutando... aproxime a caneta do microfone e teste um click.');
+    requestAnimationFrame(loop);
+  } catch (err) {
+    setStatus('Não foi possível acessar o microfone. Verifique as permissões do navegador.', true);
+  }
+}
+
+function stopListening() {
+  listening = false;
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  if (audioCtx) audioCtx.close();
+  el.micBtn.textContent = '🎤 Ativar microfone';
+  el.micBtn.classList.remove('on');
+  el.micBtn.classList.add('off');
+  el.meterFill.style.width = '0%';
+  el.meterVal.textContent = '0';
+  setStatus('');
+}
+
+el.micBtn.addEventListener('click', () => {
+  if (listening) stopListening();
+  else startListening();
+});
+
+el.sensSlider.addEventListener('input', (e) => {
+  sensitivity = parseInt(e.target.value, 10);
+  el.sensVal.textContent = sensitivity;
+  updateThresholdMarker();
+  persist();
+});
+
+el.speechToggle.addEventListener('click', () => {
+  speechEnabled = !speechEnabled;
+  el.speechToggle.classList.toggle('active', speechEnabled);
+  persist();
+});
+
+el.vibrateToggle.addEventListener('click', () => {
+  vibrateEnabled = !vibrateEnabled;
+  el.vibrateToggle.classList.toggle('active', vibrateEnabled);
+  persist();
+});
+
+el.btnPlus.addEventListener('click', () => registerClick());
+
+el.btnMinus.addEventListener('click', () => {
+  if (count > 0) {
+    count--;
+    el.count.textContent = count;
+    persist();
+  }
+});
+
+el.btnReset.addEventListener('click', () => {
+  if (count === 0) return;
+  count = 0;
+  el.doseLabel.value = '';
+  render();
+  persist();
+  setStatus('Contador zerado');
+});
+
+el.btnSave.addEventListener('click', () => {
+  if (count === 0) {
+    setStatus('Nada para salvar — registre um click antes', true);
+    return;
+  }
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  history.push({ id: Date.now(), clicks: count, label: el.doseLabel.value.trim(), date: dateStr });
+  count = 0;
+  el.doseLabel.value = '';
+  render();
+  persist();
+  setStatus('Dose salva no histórico');
+});
+
+load();
+</script>
+</body>
+</html>
